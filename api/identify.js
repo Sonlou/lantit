@@ -24,15 +24,15 @@ export default async function handler(req, res) {
       body: JSON.stringify({ model, messages })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenRouter API Error: ${response.status} - ${errorText}`);
+    // NEW CODE: Shows the real error from the server
+if (!response.ok) {
+    let errorMessage = `Server Error: ${response.status}`;
+    try {
+        const errorData = await response.json();
+        if (errorData.error) errorMessage = errorData.error;
+    } catch (e) {
+        // If response isn't JSON (e.g. 404 HTML page), keep the status code
     }
-
-    const data = await response.json();
-    res.status(200).json(data);
-  } catch (error) {
-    console.error("Backend Error:", error);
-    res.status(500).json({ error: error.message });
-  }
+    throw new Error(errorMessage);
 }
+const data = await response.json();
