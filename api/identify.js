@@ -1,38 +1,46 @@
-export default async function handler(req, res) {
+// File: api/identify.js
+module.exports = async function handler(req, res) {
+  // 1. Check for POST request
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
-  
-  // SECURELY retrieve the key from Vercel Environment Variables
-  const apiKey = process.env.OPENROUTER_API_KEY;
 
+  // 2. Get the API Key securely from Vercel Settings
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'OpenRouter API Key not configured on server.' });
+    return res.status(500).json({ error: 'Server Error: OpenRouter API Key is missing.' });
   }
 
+  // 3. Get the data sent from your frontend (index.html)
   const { messages, model } = req.body;
 
   try {
+    // 4. YOUR CORRECT FETCH STRUCTURE
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": req.headers.referer || "https://florascan.vercel.app",
-        "X-Title": "FloraScan"
+        "HTTP-Referer": "https://florascan.vercel.app", // Your site URL
+        "X-Title": "FloraScan",
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({ model, messages })
+      body: JSON.stringify({
+        model: model, // Using the model passed from frontend
+        messages: messages // Using the text/image passed from frontend
+      })
     });
 
-    // NEW CODE: Shows the real error from the server
-if (!response.ok) {
-    let errorMessage = `Server Error: ${response.status}`;
-    try {
-        const errorData = await response.json();
-        if (errorData.error) errorMessage = errorData.error;
-    } catch (e) {
-        // If response isn't JSON (e.g. 404 HTML page), keep the status code
+    // 5. Handle errors from OpenRouter
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `OpenRouter Error: ${errorText}` });
     }
-    throw new Error(errorMessage);
+
+    // 6. Send the success data back to frontend
+    const data = await response.json();
+    return res.status(200).json(data);
+
+  } catch (error) {
+    return res.status(500).json({ error: `Server logic error: ${error.message}` });
+  }
 }
-const data = await response.json();
